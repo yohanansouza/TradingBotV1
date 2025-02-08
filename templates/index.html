@@ -1,0 +1,115 @@
+
+# Função para abrir automaticamente o Flask Dashboard
+def run_flask_dashboard():
+    print("🚀 Iniciando Dashboard Flask...")
+    threading.Thread(target=server.run, kwargs={'debug': True, 'use_reloader': False}).start()
+    time.sleep(3)
+    webbrowser.open("http://127.0.0.1:5000")
+
+
+
+
+
+<!-- trading_bot/templates/index.html -->
+<!-- Dashboard interativo com Flask + Jinja2 -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { width: 80%; margin: auto; }
+        canvas { max-width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Trading Bot Dashboard</h1>
+        <label for="crypto">Escolha a Criptomoeda:</label>
+        <select id="crypto">
+            <option value="BTCUSDT">BTCUSDT</option>
+            <option value="ETHUSDT">ETHUSDT</option>
+            <option value="SOLUSDT">SOLUSDT</option>
+            <option value="BNBUSDT">BNBUSDT</option>
+            <option value="XRPUSDT">XRPUSDT</option>
+        </select>
+        
+        <h2>📈 Gráfico Candlestick</h2>
+        <div id="candlestickChart"></div>
+
+        <h2>📋 Histórico de Preços</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Preço</th>
+                    <th>Máximo</th>
+                    <th>Mínimo</th>
+                    <th>Volume</th>
+                </tr>
+            </thead>
+            <tbody id="priceTableBody">
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        function updateChartAndTable(symbol) {
+            $.getJSON(`/data/${symbol}`, function(data) {
+                if (data.data.length === 0) {
+                    alert("Nenhum dado encontrado para " + symbol);
+                    return;
+                }
+                
+                let timestamps = data.data.map(entry => entry.timestamp);
+                let prices = data.data.map(entry => entry.close);
+                let high = data.data.map(entry => entry.high);
+                let low = data.data.map(entry => entry.low);
+                let open = prices.map((p, i) => (i > 0 ? prices[i - 1] : p));
+                
+                let candlestickData = [{
+                    x: timestamps,
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: prices,
+                    type: 'candlestick',
+                    name: `Preço de ${symbol}`
+                }];
+                
+                Plotly.newPlot("candlestickChart", candlestickData, {
+                    title: `📈 Gráfico Candlestick para ${symbol}`
+                });
+                
+                let tableBody = document.getElementById("priceTableBody");
+                tableBody.innerHTML = "";
+                data.data.slice(-20).forEach(entry => {
+                    let row = `<tr>
+                        <td>${entry.timestamp}</td>
+                        <td>${entry.close}</td>
+                        <td>${entry.high}</td>
+                        <td>${entry.low}</td>
+                        <td>${entry.volume}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            });
+        }
+        
+        document.getElementById("crypto").addEventListener("change", function() {
+            updateChartAndTable(this.value);
+        });
+        
+        updateChartAndTable("BTCUSDT");
+    </script>
+</body>
+</html>

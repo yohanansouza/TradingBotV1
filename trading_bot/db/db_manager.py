@@ -4,16 +4,17 @@
 import sqlite3
 import os
 import pandas as pd
+import logging
 
 DB_DIR = "models"
 DB_PATH = os.path.join(DB_DIR, "trading_data.db")
 
-# ✅ 1. Criação do Banco de Dados
+# ✅ 1. Criação do Banco de Dados e Tabelas (Se Não Existirem)
 def create_database():
     if not os.path.exists(DB_DIR):
         os.makedirs(DB_DIR, exist_ok=True)
     try:
-        conn = sqlite3.connect(DB_PATH, timeout=10)
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS historical_data (
@@ -33,14 +34,15 @@ def create_database():
                 lower_band REAL,
                 regime TEXT,
                 UNIQUE(symbol, timestamp)
-            )
+            );
         ''')
         conn.commit()
         conn.close()
-        print("✅ Banco de dados criado com sucesso.")
+        logging.info("✅ Banco de dados criado/verificado com sucesso.")
     except Exception as e:
-        print(f"❌ Erro ao criar banco: {e}")
+        logging.error(f"❌ Erro ao criar/verificar banco de dados: {e}")
 
+        
 # ✅ 2. Armazenamento de Dados Históricos
 def store_historical_data(df, symbol):
     if df.empty:
@@ -97,5 +99,24 @@ def get_historical_data_from_db(symbol):
         print(f"❌ Erro ao recuperar dados: {e}")
         return pd.DataFrame()
 
+
+ # ✅ 2. Garantia de Caminho e Tabela Correta
+
+# ✅ 2. Garantia de Caminho e Tabela Correta Antes de Usar o Banco
+def ensure_db_ready():
+    if not os.path.exists(DB_PATH):
+        logging.warning("⚠️ Banco de dados não encontrado. Criando...")
+        create_database()
+    else:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='historical_data'")
+        table_exists = cursor.fetchone()[0]
+        if not table_exists:
+            logging.warning("⚠️ Tabela `historical_data` não encontrada. Criando...")
+            create_database()
+        conn.close()
+
+# ✅ 3. Execução Direta para Criar e Validar o Banco de Dados
 if __name__ == "__main__":
-    create_database()
+    ensure_db_ready()

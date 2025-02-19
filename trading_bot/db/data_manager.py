@@ -7,10 +7,10 @@ import time
 from trading_bot.config import (crypto_list, Train_Date_Start, Train_Date_End,
                                 Test_Date_Start, Test_Date_End, Enable_Vet_Symbol, crypto_list_test)
 from trading_bot.utils.bybit_api import get_historical_data, get_top_movers_by_api, test_connection
-from trading_bot.db.db_manager import create_database, store_historical_data, get_existing_date_range
+from trading_bot.db.db_manager import create_database, store_historical_data, get_existing_date_range, ensure_db_ready
 from trading_bot.utils.indicators import compute_rsi, compute_macd, compute_bollinger_bands
 
-DB_PATH = os.path.join("data", "datasets", "trading_data.db")
+DB_PATH = os.path.join("models", "trading_data.db")
 
 # ✅ 1. Inicialização do Banco de Dados
 def initialize_database():
@@ -31,33 +31,43 @@ def process_and_store(symbol, df):
     df.fillna(0, inplace=True)
     store_historical_data(df, symbol)
 
-# ✅ 3. Importação de Dados Históricos
+# ✅ 1. Garante que o Banco de Dados está Criado Antes da Importação
 def import_data_for_symbol(symbol, start_date, end_date):
-    date_range = get_existing_date_range(symbol)
-    fetch_start = start_date
-    if date_range and date_range[0]:
-        existing_start, existing_end = date_range
-        if pd.to_datetime(existing_start) <= pd.to_datetime(start_date) and pd.to_datetime(existing_end) >= pd.to_datetime(end_date):
-            print(f"Dados para {symbol} já completos no banco.")
-            return
-        fetch_start = (pd.to_datetime(existing_end) + pd.Timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S")
-
-    df = get_historical_data(symbol, interval="1", start_date=fetch_start, end_date=end_date)
-    if not df.empty:
-        process_and_store(symbol, df)
+    ensure_db_ready()  # Garante que o banco de dados e a tabela existem
+    print(f"⬇️ Baixando todos os dados para {symbol} de {start_date} até {end_date}...")
+    all_data = []
+    current_start = start_date
+    
+    while True:
+        df = get_historical_data(symbol, interval="1", start_date=current_start, end_date=end_date)
+        if df.empty:
+            print(f"⚠️ Nenhum dado retornado para {symbol}.")
+            break
+        
+        all_data.append(df)
+        latest_timestamp = df["timestamp"].max()
+        
+        if pd.to_datetime(latest_timestamp) >= pd.to_datetime(end_date):
+            break
+        
+        current_start = (pd.to_datetime(latest_timestamp) + pd.Timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S")
+        
+    if all_data:
+        final_df = pd.concat(all_data, ignore_index=True)
+        store_historical_data(final_df, symbol)
         print(f"✅ Dados importados para {symbol}.")
     else:
-        print(f"⚠️ Nenhum dado retornado para {symbol}.")
+        print(f"⚠️ Nenhum dado armazenado para {symbol}.")
 
-# ✅ 4. Importação de Dados de Treinamento
+# ✅ 2. Importação de Treinamento (Baixa Todos os Dados Definidos no `config.py`)
 def import_training_data():
     for symbol in crypto_list:
         import_data_for_symbol(symbol, Train_Date_Start, Train_Date_End)
 
-# ✅ 5. Importação de Dados de Teste
+# ✅ 3. Importação de Teste (Baixa Todos os Dados Definidos no `config.py`)
 def import_testing_data():
     for symbol in crypto_list_test:
-        import_data_for_symbol(symbol, Test_Date_Start, Test_Date_End)
+        import_data_for_symbol(symbol, Test_Date_Start, Test_Date_End)      
 
 # ✅ 6. Atualização de Symbols Dinâmicos
 def update_dynamic_symbols():
@@ -83,6 +93,8 @@ def data_manager_main():
         import_data_for_symbol(symbol, Test_Date_Start, Test_Date_End)
     print("✅ Data Manager concluído.")
 
+# ✅ 4. Execução Principal
 if __name__ == "__main__":
-    test_connection()
-    data_manager_main()
+    ensure_db_ready()
+    import_training_data()
+    import_testing_data()

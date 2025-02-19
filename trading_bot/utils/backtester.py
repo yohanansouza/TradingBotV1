@@ -1,9 +1,9 @@
-# 🚀 Código Corrigido do `backtester.py`
-# ==========================================
+# 📂 Módulo: `backtester.py`
+# 🚀 Correção do Erro: "NoneType object has no attribute 'iterrows'"
+# ===================================================================
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error
 
 __all__ = ['Backtester']
 
@@ -15,6 +15,10 @@ class Backtester:
         self.equity_curve = []
 
     def run(self, data, strategy):
+        if data is None or data.empty:
+            print("⚠️ Erro: Nenhum dado foi passado para o backtester.")
+            return pd.DataFrame()
+        
         self.equity_curve = [self.initial_balance]
         for index, row in data.iterrows():
             signal = strategy(row)
@@ -22,12 +26,14 @@ class Backtester:
                 profit = (row['close'] - row['open']) * 0.01 * self.balance
                 self.balance += profit
             self.equity_curve.append(self.balance)
-        return np.array(self.equity_curve)
+        return pd.DataFrame({"equity_curve": self.equity_curve})
 
     def calculate_metrics(self, equity_curve):
-        returns = np.diff(equity_curve) / equity_curve[:-1]
+        if equity_curve.empty:
+            return 0, 0
+        returns = np.diff(equity_curve["equity_curve"]) / equity_curve["equity_curve"].shift(1)
         sharpe_ratio = np.mean(returns) / (np.std(returns) + 1e-8)
-        drawdown = np.max(np.maximum.accumulate(equity_curve) - equity_curve)
+        drawdown = np.max(np.maximum.accumulate(equity_curve["equity_curve"]) - equity_curve["equity_curve"])
         return sharpe_ratio, drawdown
 
 # ✅ 2. Execução de Teste

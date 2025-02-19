@@ -4,7 +4,7 @@
 import requests
 import pandas as pd
 import time
-from trading_bot.config import BASE_URL
+from trading_bot.config import BASE_URL, Train_Date_Start, Train_Date_End
 
 __all__ = ['get_historical_data', 'get_top_movers', 'test_connection']
 
@@ -20,26 +20,58 @@ def request_with_retries(url, params, retries=5, delay=3):
         time.sleep(delay * (2 ** attempt))
     raise ValueError("🚫 Falha após múltiplas tentativas")
 
-# ✅ 2. Obter Dados Históricos
-def get_historical_data(symbol, interval="1", start_date=None, end_date=None):
-    start_ts = int(pd.Timestamp(start_date).timestamp() * 1000)
-    end_ts = int(pd.Timestamp(end_date).timestamp() * 1000)
+# ✅ 2. Função Corrigida para Obter Todos os Dados Históricos do Período
+
+def get_historical_data(symbol, interval="1", limit=1000, start_date=None, end_date=None):
+    """
+    Obtém dados históricos de um símbolo entre start_date e end_date.
+    Se start_date/end_date não forem fornecidos, utiliza os parâmetros padrão de treinamento.
+    """
+    if start_date is None:
+        start_date = Train_Date_Start
+    if end_date is None:
+        end_date = Train_Date_End
+
+    start_timestamp = int(pd.Timestamp(start_date).timestamp() * 1000)
+    end_timestamp = int(pd.Timestamp(end_date).timestamp() * 1000)
     
     url = f"{BASE_URL}/v5/market/kline"
-    params = {
-        "category": "linear",
-        "symbol": symbol,
-        "interval": interval,
-        "start": start_ts,
-        "end": end_ts,
-        "limit": 1000
-    }
+    all_data = []
     
-    data = request_with_retries(url, params)
-    df = pd.DataFrame(data["result"]["list"], columns=["timestamp", "open", "high", "low", "close", "volume"])
-    df["timestamp"] = pd.to_datetime(df["timestamp"].astype(int), unit="ms")
-    df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
-    return df
+    while start_timestamp < end_timestamp:
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": interval,
+            "limit": limit,
+            "start": start_timestamp
+        }
+        data = request_with_retries(url, params)
+        
+        if "result" not in data or "list" not in data["result"]:
+            raise ValueError(f"Erro ao buscar dados históricos para {symbol}: {data}")
+        
+        df = pd.DataFrame(data["result"]["list"])
+        expected_columns = ["timestamp", "open", "high", "low", "close", "volume"]
+        df = df.iloc[:, :len(expected_columns)]
+        df.columns = expected_columns
+        
+        df["timestamp"] = pd.to_numeric(df["timestamp"], errors='coerce') / 1000
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s", errors='coerce')
+        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+        
+        all_data.append(df)
+        
+        if not df.empty:
+            start_timestamp = int(df["timestamp"].max().timestamp() * 1000) + 1
+        else:
+            break
+        
+        time.sleep(0.5)
+    
+    final_df = pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
+    final_df = final_df[(final_df["timestamp"] >= pd.Timestamp(start_date)) & (final_df["timestamp"] <= pd.Timestamp(end_date))]
+    return final_df
 
 # ✅ 3. Obter Top Movers (Maiores Altas e Quedas)
 def get_top_movers_by_api(interval="5m"):

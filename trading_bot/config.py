@@ -12,14 +12,14 @@ BASE_URL = "https://api.bybit.com"
 CriptAtive_Dinamic_Apply = 0  # Ativos dinâmicos (Top Gainers/Losers)
 Enable_Vet_Symbol = 0         # Vetor de symbols dinâmico (Top Movers)
 
-crypto_list = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Treinamento
-crypto_list_test = ["USUALUSDT", "XRPUSDT"]      # Backtest
+crypto_list = ["BTCUSDT"]  # Treinamento
+crypto_list_test = ["USUALUSDT"]      # Backtest
 
 ### 📌 3. Datas de Treinamento e Teste
 Train_Date_Start = "2024-09-01"
 Train_Date_End = "2024-12-30"
-Test_Date_Start = "2025-01-01"
-Test_Date_End = "2025-01-02"
+Test_Date_Start = "2025-02-01"
+Test_Date_End = "2025-02-16"
 
 ### 📌 4. Configuração de Batch para Treinamento
 Batch_Method = 1              # 1 = Unique, 0 = Pack

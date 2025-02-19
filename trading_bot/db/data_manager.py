@@ -34,30 +34,27 @@ def process_and_store(symbol, df):
 # ✅ 1. Garante que o Banco de Dados está Criado Antes da Importação
 def import_data_for_symbol(symbol, start_date, end_date):
     ensure_db_ready()  # Garante que o banco de dados e a tabela existem
-    print(f"⬇️ Baixando todos os dados para {symbol} de {start_date} até {end_date}...")
-    all_data = []
-    current_start = start_date
+    print(f"Importando dados para {symbol} de {start_date} até {end_date}...")
+    date_range = get_existing_date_range(symbol)
+    fetch_start = start_date
+    if date_range and date_range[0]:
+        existing_start, existing_end = date_range
+        # Se os dados existentes já cobrem o período completo, nada é feito.
+        if pd.to_datetime(existing_start) <= pd.to_datetime(start_date) and pd.to_datetime(existing_end) >= pd.to_datetime(end_date):
+            print(f"Dados para {symbol} já completos no DB.")
+            return
+        # Se faltar dados após o final existente, inicia do dia seguinte ao último registro.
+        fetch_start = (pd.to_datetime(existing_end) + pd.Timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S")
     
-    while True:
-        df = get_historical_data(symbol, interval="1", start_date=current_start, end_date=end_date)
+    try:
+        df = get_historical_data(symbol, interval="1", start_date=fetch_start, end_date=end_date)
         if df.empty:
             print(f"⚠️ Nenhum dado retornado para {symbol}.")
-            break
-        
-        all_data.append(df)
-        latest_timestamp = df["timestamp"].max()
-        
-        if pd.to_datetime(latest_timestamp) >= pd.to_datetime(end_date):
-            break
-        
-        current_start = (pd.to_datetime(latest_timestamp) + pd.Timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S")
-        
-    if all_data:
-        final_df = pd.concat(all_data, ignore_index=True)
-        store_historical_data(final_df, symbol)
-        print(f"✅ Dados importados para {symbol}.")
-    else:
-        print(f"⚠️ Nenhum dado armazenado para {symbol}.")
+            return
+        process_and_store(symbol, df)
+        print(f"✅ Dados para {symbol} importados com sucesso.")
+    except Exception as e:
+        print(f"❌ Erro ao importar dados para {symbol}: {e}")
 
 # ✅ 2. Importação de Treinamento (Baixa Todos os Dados Definidos no `config.py`)
 def import_training_data():

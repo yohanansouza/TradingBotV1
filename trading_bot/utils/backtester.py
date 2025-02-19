@@ -1,5 +1,4 @@
 # 📂 Módulo: `backtester.py`
-# 🚀 Correção do Erro: "NoneType object has no attribute 'iterrows'"
 # ===================================================================
 
 import numpy as np

@@ -1,3 +1,4 @@
+#config.py
 # ==========================#
 # 📊 CONFIGURAÇÃO GLOBAL    #
 # ==========================#
@@ -13,7 +14,7 @@ CriptAtive_Dinamic_Apply = 0  # Ativos dinâmicos (Top Gainers/Losers)
 Enable_Vet_Symbol = 0         # Vetor de symbols dinâmico (Top Movers)
 
 crypto_list = ["BTCUSDT"]  # Treinamento
-crypto_list_test = ["USUALUSDT"]      # Backtest
+crypto_list_test = ["DOGEUSDT"]      # Backtest
 
 ### 📌 3. Datas de Treinamento e Teste
 Train_Date_Start = "2024-09-01"

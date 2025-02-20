@@ -4,19 +4,19 @@
 import logging
 import os
 from datetime import datetime
+import io  # Import the io module
 
-# ✅ 1. Configuração do Sistema de Logs
 def setup_logger(log_file="logs/trading_bot.log", log_level=logging.INFO):
     if not os.path.exists(os.path.dirname(log_file)):
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
+
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
         handlers=[
-            logging.FileHandler(log_file, mode='a'),
-            logging.StreamHandler()
+            logging.FileHandler(log_file, mode='a', encoding='utf-8'),  # Explicitly set encoding for FileHandler
+            logging.StreamHandler(stream=io.TextIOWrapper(os.sys.stdout.buffer, encoding='utf-8')) # Wrap stdout with UTF-8 encoder
         ]
     )
     logging.info("🚀 Logger inicializado com sucesso")
